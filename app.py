@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
+import json
 import os
 import requests as req
 from submiter import Submitter, AuthenticationError
@@ -68,9 +69,19 @@ def get_all_services():
             new_token = reauthenticate()
             results = req.get(
                 f"{API_URL}/api/v2/services/",
-                headers={"Authorization": f"Bearer {new_token}"}
-            ).json()
+                headers={"Authorization": f"Bearer {new_token}"},
+                timeout=20
+            )
+            if not results.ok :
+                raise Exception(json.dumps(results.json()))
             print(results)
+        
+        except req.exceptions.Timeout:
+            return jsonify({
+                "status" :  "TimoutError",
+                "message" : "API Platfrom sedang sibuk, silahkan lapor ke probset ",
+            }), 500
+        
         except Exception as reauth_error:
             print(f"[!] Auto-authentication gagal total: {reauth_error}")
             shutdown_server()
@@ -80,7 +91,7 @@ def get_all_services():
                 "detail": str(reauth_error)
         }), 401
 
-    return results
+    return results.json()
 
 # Route untuk submit flag
 @app.route("/submit", methods=["POST"])
