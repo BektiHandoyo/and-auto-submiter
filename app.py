@@ -53,6 +53,35 @@ def shutdown_server():
     func()
     print("[!] Server dimatikan karena auto-auth gagal.")
 
+@app.route("/services", methods=["GET"])
+def get_all_services():
+    auth_token = read_token()
+    results = req.get(
+        f"{API_URL}/api/v2/services/",
+        headers={"Authorization": f"Bearer {auth_token}"}
+    ).json()
+
+    print(results)
+
+    if "status" not in results and results["status"] != "success":
+        try:
+            new_token = reauthenticate()
+            results = req.get(
+                f"{API_URL}/api/v2/services/",
+                headers={"Authorization": f"Bearer {new_token}"}
+            ).json()
+            print(results)
+        except Exception as reauth_error:
+            print(f"[!] Auto-authentication gagal total: {reauth_error}")
+            shutdown_server()
+            return jsonify({
+                "status": "error",
+                "message": "Auto-authentication gagal total. Server dihentikan.\nTolong sediakan authentication token yang benar pada file token.txt atau sediakan EMAIL dan PASSWORD pada file .env",
+                "detail": str(reauth_error)
+        }), 401
+
+    return results
+
 # Route untuk submit flag
 @app.route("/submit", methods=["POST"])
 def submit_flag():
