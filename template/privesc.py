@@ -45,6 +45,7 @@ def exploit(target, portSpawnShell):
     # exploit goes here
     # start
     flag = ''
+    r.sendline(b"exit")
     r.close()
     
     # ==============================================================

